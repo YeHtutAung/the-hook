@@ -19,6 +19,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 @Slf4j
@@ -55,10 +56,11 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
     }
 
     private void insertClient(RegisteredClient client) {
+        Instant issuedAt = client.getClientIdIssuedAt() != null ? client.getClientIdIssuedAt() : Instant.now();
         jdbcTemplate.update(INSERT_CLIENT,
                 client.getId(),
                 client.getClientId(),
-                Timestamp.from(client.getClientIdIssuedAt()),
+                Timestamp.from(issuedAt),
                 client.getClientSecret(),
                 client.getClientSecretExpiresAt() != null ?
                         Timestamp.from(client.getClientSecretExpiresAt()) : null,
