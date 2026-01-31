@@ -1,0 +1,66 @@
+server:
+  port: 9000
+  error:
+    include-message: always
+    include-binding-errors: always
+
+spring:
+  application:
+    name: identity-access-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ias_db
+    username: ias_user
+    password: ias_password
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_schema: public
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  thymeleaf:
+    cache: false
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    com.thehook.ias: DEBUG
+    org.hibernate.SQL: DEBUG
+
+# IAS Configuration
+ias:
+  base-url: http://localhost:9000
+  issuer-uri: http://localhost:9000
+  # RSA key pair for JWT signing (generated on startup if not provided)
+  jwt:
+    key-id: ias-key-1
+  # Email configuration
+  email:
+    enabled: false  # Set to true to enable email sending
+    verification:
+      expiry-hours: 24
+  # Invitation configuration
+  invitation:
+    expiry-days: 7
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    oauth:
+      client-id: swagger-ui
+      use-pkce-with-authorization-code-grant: true
+  show-actuator: false
