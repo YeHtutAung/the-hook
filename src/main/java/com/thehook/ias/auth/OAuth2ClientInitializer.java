@@ -79,5 +79,33 @@ public class OAuth2ClientInitializer implements CommandLineRunner {
             clientRepository.save(swaggerClient);
             log.info("Swagger UI OAuth2 client registered: swagger-ui");
         }
+
+        // Pre-order Web App (React SPA using PKCE)
+        if (clientRepository.findByClientId("preorder-web") == null) {
+            RegisteredClient preorderWebClient = RegisteredClient.withId(UUID.randomUUID().toString())
+                    .clientId("preorder-web")
+                    .clientName("Pre-order Web Application")
+                    .clientAuthenticationMethod(ClientAuthenticationMethod.NONE) // Public client - no secret
+                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                    .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                    .redirectUri("http://localhost:3000/callback")
+                    .postLogoutRedirectUri("http://localhost:3000/")
+                    .scope(OidcScopes.OPENID)
+                    .scope(OidcScopes.PROFILE)
+                    .scope(OidcScopes.EMAIL)
+                    .clientSettings(ClientSettings.builder()
+                            .requireProofKey(true) // PKCE required
+                            .requireAuthorizationConsent(false) // No consent screen
+                            .build())
+                    .tokenSettings(TokenSettings.builder()
+                            .accessTokenTimeToLive(Duration.ofMinutes(15))
+                            .refreshTokenTimeToLive(Duration.ofDays(7))
+                            .reuseRefreshTokens(false)
+                            .build())
+                    .build();
+
+            clientRepository.save(preorderWebClient);
+            log.info("Pre-order Web OAuth2 client registered: preorder-web");
+        }
     }
 }
