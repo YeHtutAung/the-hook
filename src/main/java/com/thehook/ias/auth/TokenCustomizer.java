@@ -1,9 +1,13 @@
 package com.thehook.ias.auth;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  * Customizes OAuth2/OIDC tokens with additional claims.
@@ -16,6 +20,14 @@ public class TokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext
 
     @Override
     public void customize(JwtEncodingContext context) {
+        // Access Token: Add audience for resource servers
+        if (OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
+            // Use ArrayList to avoid Jackson serialization issues with immutable lists
+            ArrayList<String> audiences = new ArrayList<>();
+            audiences.add("preorder-api");
+            context.getClaims().audience(audiences);
+        }
+
         Authentication principal = context.getPrincipal();
 
         if (principal.getPrincipal() instanceof IasUserPrincipal userPrincipal) {
@@ -32,7 +44,7 @@ public class TokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext
             }
 
             // Access Token: Add minimal claims for API authorization
-            if ("access_token".equals(tokenType)) {
+            if (OAuth2TokenType.ACCESS_TOKEN.equals(context.getTokenType())) {
                 // Platform owner flag for admin access
                 if (userPrincipal.isPlatformOwner()) {
                     context.getClaims().claim("platform_owner", true);
