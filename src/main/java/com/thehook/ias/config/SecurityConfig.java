@@ -99,6 +99,8 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Allow unknown well-known paths to return 404 instead of 401
+                        .requestMatchers("/.well-known/appspecific/**").permitAll()
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )

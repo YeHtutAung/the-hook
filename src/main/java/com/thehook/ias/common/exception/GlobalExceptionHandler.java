@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.net.URI;
 import java.time.Instant;
@@ -85,6 +86,19 @@ public class GlobalExceptionHandler {
         );
         problem.setType(URI.create("urn:ias:error:unauthorized"));
         problem.setProperty("code", "UNAUTHORIZED");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ProblemDetail handleNoResourceFound(NoResourceFoundException ex) {
+        log.debug("Resource not found: {}", ex.getResourcePath());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND,
+                "Resource not found"
+        );
+        problem.setType(URI.create("urn:ias:error:not-found"));
+        problem.setProperty("code", "NOT_FOUND");
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }
