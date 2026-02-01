@@ -419,7 +419,7 @@ curl -X POST http://localhost:9000/authorize \
 1. **demo-client** is the pre-registered public OAuth2 client with PKCE support
 2. Redirect URI `http://localhost:3000/callback` is registered for demo-client
 3. User must be email-verified to log in successfully
-4. The `/authorize` endpoint requires `PLATFORM_OWNER` role or `admin:authorize` permission
+4. The `/authorize` endpoint requires any authenticated user (used by resource servers to check permissions)
 5. RSA keys are generated on each startup (not persisted)
 
 ---
@@ -433,3 +433,186 @@ curl -X POST http://localhost:9000/authorize \
 | Login Page | `curl -s -o /dev/null -w "%{http_code}" http://localhost:9000/login` | 200 |
 | Protected API (no token) | `curl -s -o /dev/null -w "%{http_code}" http://localhost:9000/me` | 401 |
 | Swagger UI | Open `http://localhost:9000/swagger-ui.html` | Swagger page loads |
+
+---
+
+## 7. RBAC Smoke Test
+
+This section validates the complete RBAC lifecycle: Organization → Membership → Role → Permission → /authorize.
+
+### Prerequisites
+- IAS running at `http://localhost:9000`
+- Valid access token (see Section 1 for PKCE flow)
+- Demo Resource Server running at `http://localhost:8080` (optional)
+
+### Seeded Roles and Permissions
+
+| Role | Permissions | Description |
+|------|-------------|-------------|
+| PLATFORM_OWNER | All permissions | Global super admin |
+| SELLER_ADMIN | org:read, org:update, member:read, member:invite, member:remove, member:role:assign | Organization administrator |
+| END_USER | org:read, member:read | Regular organization member |
+
+### Step 1: Store Access Token
+
+```bash
+# Replace with your access token from PKCE flow
+ACCESS_TOKEN="your_access_token_here"
+```
+
+### Step 2: Create Organization
+
+```bash
+curl -X POST http://localhost:9000/orgs \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"RBAC Test Org","slug":"rbac-test-org"}'
+```
+
+**Expected Response (201 Created):**
+```json
+{
+  "id": "<org-uuid>",
+  "name": "RBAC Test Org",
+  "slug": "rbac-test-org",
+  "enabled": true
+}
+```
+
+**Note:** The creator is automatically added as SELLER_ADMIN.
+
+```bash
+# Store org ID for subsequent commands
+ORG_ID="<org-uuid-from-response>"
+```
+
+### Step 3: Verify Membership Created
+
+```bash
+curl -H "Authorization: Bearer $ACCESS_TOKEN" \
+  http://localhost:9000/me/memberships
+```
+
+**Expected Response:**
+```json
+[{
+  "id": "<membership-uuid>",
+  "organizationId": "<org-uuid>",
+  "organizationName": "RBAC Test Org",
+  "status": "ACTIVE",
+  "roles": ["SELLER_ADMIN"]
+}]
+```
+
+### Step 4: Test Authorization - Should Return allowed=true
+
+```bash
+# Get your user_id from the JWT claims (or /me endpoint)
+USER_ID="<your-user-uuid>"
+
+curl -X POST http://localhost:9000/authorize \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"userId\":\"$USER_ID\",\"orgId\":\"$ORG_ID\",\"permissionKey\":\"org:read\"}"
+```
+
+**Expected Response:**
+```json
+{
+  "allowed": true,
+  "reason": null
+}
+```
+
+### Step 5: Test via Demo Resource Server (Optional)
+
+```bash
+curl -H "Authorization: Bearer $ACCESS_TOKEN" \
+  "http://localhost:8080/secure/authorize-check?orgId=$ORG_ID&permissionKey=org:read"
+```
+
+**Expected Response:**
+```json
+{
+  "allowed": true,
+  "reason": null
+}
+```
+
+### Step 6: Invite Another User (Optional)
+
+```bash
+curl -X POST http://localhost:9000/orgs/$ORG_ID/members/invite \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"newuser@example.com"}'
+```
+
+**Expected Response (201 Created):**
+```json
+{
+  "id": "<invitation-uuid>",
+  "email": "newuser@example.com",
+  "status": "PENDING",
+  "token": "<invitation-token>",
+  "expiresAt": "..."
+}
+```
+
+### Step 7: Accept Invitation (as the invited user)
+
+```bash
+# The invited user needs their own access token
+INVITED_USER_TOKEN="..."
+
+curl -X POST http://localhost:9000/orgs/$ORG_ID/members/accept \
+  -H "Authorization: Bearer $INVITED_USER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"token":"<invitation-token>"}'
+```
+
+**Expected Response:**
+```json
+{
+  "id": "<membership-uuid>",
+  "organizationId": "<org-uuid>",
+  "status": "ACTIVE",
+  "roles": ["END_USER"]
+}
+```
+
+### Step 8: List Organization Members
+
+```bash
+curl -H "Authorization: Bearer $ACCESS_TOKEN" \
+  http://localhost:9000/orgs/$ORG_ID/members
+```
+
+**Expected Response:**
+```json
+[
+  {"userId": "...", "email": "creator@example.com", "roles": ["SELLER_ADMIN"], "status": "ACTIVE"},
+  {"userId": "...", "email": "newuser@example.com", "roles": ["END_USER"], "status": "ACTIVE"}
+]
+```
+
+### Step 9: Assign Additional Role (PLATFORM_OWNER only)
+
+```bash
+# Requires PLATFORM_OWNER role
+MEMBERSHIP_ID="<membership-uuid>"
+ROLE_ID="00000000-0000-0000-0000-000000000002"  # SELLER_ADMIN role
+
+curl -X POST "http://localhost:9000/admin/memberships/$MEMBERSHIP_ID/roles/$ROLE_ID?orgId=$ORG_ID" \
+  -H "Authorization: Bearer $PLATFORM_OWNER_TOKEN"
+```
+
+### RBAC Smoke Test Summary
+
+| Step | Endpoint | Expected Result |
+|------|----------|-----------------|
+| Create Org | `POST /orgs` | 201, creator becomes SELLER_ADMIN |
+| Get Memberships | `GET /me/memberships` | Lists org with SELLER_ADMIN role |
+| Authorize (org:read) | `POST /authorize` | `{"allowed": true}` |
+| Authorize (member:invite) | `POST /authorize` | `{"allowed": true}` (SELLER_ADMIN) |
+| Authorize (admin:roles:read) | `POST /authorize` | `{"allowed": false}` (requires PLATFORM_OWNER) |
