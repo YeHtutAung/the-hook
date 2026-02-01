@@ -10,6 +10,13 @@ IAS is a standalone Spring Boot 3 service that provides:
 - **Multi-tenant Organizations** - Users can belong to multiple orgs with different roles
 - **Authorization API** - Central permission checking endpoint for integrated apps
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Integration Guide](docs/INTEGRATION_GUIDE.md) | Step-by-step PKCE flow, endpoint docs, RBAC smoke test |
+| [Authorization Contract](docs/authorization-contract.md) | Permission naming, roles, API contract, versioning |
+
 ## Tech Stack
 
 - Java 21
