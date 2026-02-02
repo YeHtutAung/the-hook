@@ -39,11 +39,15 @@ logging:
     org.springframework.security: DEBUG
     com.thehook.ias: DEBUG
     org.hibernate.SQL: DEBUG
+  file:
+    name: logs/ias.log
 
 # IAS Configuration
 ias:
   base-url: http://localhost:9000
   issuer-uri: http://localhost:9000
+  signup:
+    enabled: true
   # RSA key pair for JWT signing (generated on startup if not provided)
   jwt:
     key-id: ias-key-1

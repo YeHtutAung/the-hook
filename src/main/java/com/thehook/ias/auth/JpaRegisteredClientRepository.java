@@ -117,7 +117,7 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
 
     private String serializeSettings(Object settings) {
         try {
-            return objectMapper.writeValueAsString(settings);
+            return settingsObjectMapper().writeValueAsString(settings);
         } catch (Exception e) {
             throw new RuntimeException("Failed to serialize settings", e);
         }
@@ -181,7 +181,7 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
             String clientSettingsJson = rs.getString("client_settings");
             if (StringUtils.hasText(clientSettingsJson)) {
                 try {
-                    Map<String, Object> settingsMap = objectMapper.readValue(
+                    Map<String, Object> settingsMap = settingsObjectMapper().readValue(
                             clientSettingsJson, new TypeReference<>() {});
                     ClientSettings.Builder csBuilder = ClientSettings.builder();
                     if (settingsMap.containsKey("requireProofKey")) {
@@ -200,7 +200,7 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
             String tokenSettingsJson = rs.getString("token_settings");
             if (StringUtils.hasText(tokenSettingsJson)) {
                 try {
-                    Map<String, Object> settingsMap = objectMapper.readValue(
+                    Map<String, Object> settingsMap = settingsObjectMapper().readValue(
                             tokenSettingsJson, new TypeReference<>() {});
                     TokenSettings.Builder tsBuilder = TokenSettings.builder();
                     if (settingsMap.containsKey("accessTokenTimeToLive")) {
@@ -226,5 +226,10 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
 
             return builder.build();
         }
+    }
+
+    private ObjectMapper settingsObjectMapper() {
+        // Avoid default typing so simple JSON maps don't require "@class" metadata.
+        return objectMapper.copy().deactivateDefaultTyping();
     }
 }

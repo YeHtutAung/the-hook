@@ -12,7 +12,6 @@ public class IasSecurityJackson2Module extends SimpleModule {
 
     @Override
     public void setupModule(SetupContext context) {
-        SecurityJackson2Modules.enableDefaultTyping(context.getOwner());
         context.setMixInAnnotations(IasUserPrincipal.class, IasUserPrincipalMixin.class);
     }
 }

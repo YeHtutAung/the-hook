@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -19,6 +20,9 @@ public class AuthController {
 
     private final UserService userService;
 
+    @Value("${ias.signup.enabled:true}")
+    private boolean signupEnabled;
+
     @GetMapping("/login")
     public String loginPage(@RequestParam(required = false) String error,
                             @RequestParam(required = false) String logout,
@@ -29,11 +33,15 @@ public class AuthController {
         if (logout != null) {
             model.addAttribute("message", "You have been logged out");
         }
+        model.addAttribute("signupEnabled", signupEnabled);
         return "login";
     }
 
     @GetMapping("/register")
     public String registerPage(Model model) {
+        if (!signupEnabled) {
+            return "redirect:/login";
+        }
         model.addAttribute("registerRequest", new RegisterFormData());
         return "register";
     }
@@ -44,6 +52,9 @@ public class AuthController {
                           HttpServletRequest request,
                           RedirectAttributes redirectAttributes,
                           Model model) {
+        if (!signupEnabled) {
+            return "redirect:/login";
+        }
         if (bindingResult.hasErrors()) {
             return "register";
         }

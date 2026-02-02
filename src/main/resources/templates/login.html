@@ -136,7 +136,7 @@
             <button type="submit">Sign In</button>
         </form>
 
-        <div class="register-link">
+        <div class="register-link" th:if="${signupEnabled}">
             Don't have an account? <a th:href="@{/register}">Sign up</a>
         </div>
     </div>

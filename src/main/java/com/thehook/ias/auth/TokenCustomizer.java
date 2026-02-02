@@ -33,8 +33,14 @@ public class TokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext
         if (principal.getPrincipal() instanceof IasUserPrincipal userPrincipal) {
             String tokenType = context.getTokenType().getValue();
 
+            // Use UUID as the subject instead of email.
+            String subjectId = userPrincipal.getId().toString();
+            context.getClaims().subject(subjectId);
+            // Defensive: ensure sub is explicitly set to UUID.
+            context.getClaims().claim("sub", subjectId);
+
             // Add user_id to all token types (access_token, id_token)
-            context.getClaims().claim("user_id", userPrincipal.getId().toString());
+            context.getClaims().claim("user_id", subjectId);
             context.getClaims().claim("email", userPrincipal.getEmail());
 
             // ID Token: Add OIDC standard claims
@@ -48,6 +54,9 @@ public class TokenCustomizer implements OAuth2TokenCustomizer<JwtEncodingContext
                 // Platform owner flag for admin access
                 if (userPrincipal.isPlatformOwner()) {
                     context.getClaims().claim("platform_owner", true);
+                    ArrayList<String> roles = new ArrayList<>();
+                    roles.add("PLATFORM_OWNER");
+                    context.getClaims().claim("roles", roles);
                 }
             }
 
